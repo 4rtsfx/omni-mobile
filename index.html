@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><meta name="theme-color" content="#101923"><title>OMNI Mobile v0.3</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0d1420;color:#eaf1fa;font:15px system-ui,-apple-system,sans-serif}main{max-width:760px;margin:auto;padding:18px 14px 40px}h1{font-size:36px;letter-spacing:.22em;margin:0}.sub{color:#91a9bd;font-size:12px;letter-spacing:.1em}header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.panel{border:1px solid #2e4355;background:#172332;border-radius:16px;margin:12px 0;padding:15px}.head{font-weight:700;letter-spacing:.09em;color:#82dfd1;margin-bottom:12px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.control{min-width:0}.control label{display:flex;justify-content:space-between;font-size:13px;color:#cbd9e6;margin-bottom:5px}.control output{color:#83e5d3;font-variant-numeric:tabular-nums}input[type=range]{width:100%;accent-color:#68dece;touch-action:auto}select,button{font:inherit;background:#24384a;color:#eaf6ff;border:1px solid #405a70;border-radius:10px;padding:10px}button:active{background:#39687b}button.primary{background:#197b78;border-color:#37aca5;font-weight:700}.buttons{display:flex;flex-wrap:wrap;gap:8px}button:disabled{opacity:.4}.keys{display:flex;height:170px;user-select:none;touch-action:none;position:relative;border-radius:8px;overflow:hidden;background:#101923}.key{position:relative;flex:1;background:linear-gradient(#f8fbff,#b1c6d2);border:1px solid #52687d;border-radius:0 0 5px 5px;touch-action:none}.key.active{background:#74d0c3}.black{position:absolute;z-index:2;width:8%;height:60%;background:linear-gradient(#09131c,#34475b);border:1px solid #000;border-radius:0 0 4px 4px;top:0;touch-action:none}.black.active{background:#287f82}.notice{font-size:12px;color:#a8bac9;line-height:1.6}#status{font-size:12px;color:#9ce6da}input[type=file]{display:none}@media(max-width:370px){.grid{gap:10px}.keys{height:140px}}
+</style></head><body><main>
+<header><div><h1>OMNI</h1><div class="sub">MOBILE SYNTH EDITOR · v0.3</div></div><div id="status">Звук выключен</div></header>
+<div class="panel"><div class="buttons"><button class="primary" id="start">▶ Включить звук</button><button id="init">Init Patch</button><button id="save">Экспорт JSON</button><button id="import">Импорт JSON</button><input id="upload" type="file" accept=".json,application/json"></div><p class="notice">Нажми «Включить звук», затем сыграй на клавиатуре. Safari требует запуск аудио по касанию.</p></div>
+<div class="panel"><div class="head">SOUND GENERATOR</div><div class="grid">
+<div class="control"><label>Engine</label><select id="engine"><option value="analog">Analog</option><option value="fm">FM</option></select></div>
+<div class="control"><label>Waveform</label><select id="wave"><option>sawtooth</option><option>triangle</option><option>sine</option><option>square</option></select></div>
+<div class="control"><label>Detune <output id="detuneV"></output></label><input id="detune" type="range" min="0" max="35" step="1" value="7"></div>
+<div class="control"><label>Osc mix <output id="mixV"></output></label><input id="mix" type="range" min="0" max="100" value="38"></div>
+<div class="control"><label>FM index <output id="fmV"></output></label><input id="fm" type="range" min="0" max="500" value="85"></div>
+<div class="control"><label>FM ratio <output id="ratioV"></output></label><input id="ratio" type="range" min=".5" max="8" step=".5" value="2"></div>
+</div></div>
+<div class="panel"><div class="head">FILTER + ENVELOPE</div><div class="grid">
+<div class="control"><label>Cutoff <output id="cutoffV"></output></label><input id="cutoff" type="range" min="100" max="10000" value="4200" step="10"></div>
+<div class="control"><label>Resonance <output id="qV"></output></label><input id="q" type="range" min=".2" max="12" step=".1" value=".8"></div>
+<div class="control"><label>Attack <output id="attackV"></output></label><input id="attack" type="range" min=".005" max="2" step=".005" value=".08"></div>
+<div class="control"><label>Decay <output id="decayV"></output></label><input id="decay" type="range" min=".02" max="3" step=".01" value=".6"></div>
+<div class="control"><label>Sustain <output id="sustainV"></output></label><input id="sustain" type="range" min="0" max="1" step=".01" value=".65"></div>
+<div class="control"><label>Release <output id="releaseV"></output></label><input id="release" type="range" min=".03" max="4" step=".01" value="1"></div>
+<div class="control"><label>Stereo width <output id="widthV"></output></label><input id="width" type="range" min="0" max="100" value="55"></div>
+<div class="control"><label>Volume <output id="volumeV"></output></label><input id="volume" type="range" min="0" max="100" value="35"></div>
+</div></div>
+<div class="panel"><div class="head">PLAY</div><div id="keys" class="keys"></div><p class="notice">Полифония до 8 нот · касания несколькими пальцами · накрутка параметров без перезагрузки страницы</p></div>
+<p class="notice">OMNI Mobile — экспериментальный браузерный синтезатор. Это не прошивка FM1 и пока не общее C++ DSP-ядро.</p>
+</main>
+<script>
+(()=>{'use strict';
+const $=id=>document.getElementById(id), names=['engine','wave','detune','mix','fm','ratio','cutoff','q','attack','decay','sustain','release','width','volume'], defaults={engine:'analog',wave:'sawtooth',detune:7,mix:38,fm:85,ratio:2,cutoff:4200,q:.8,attack:.08,decay:.6,sustain:.65,release:1,width:55,volume:35};
+let audio,master,active=new Map(),held=new Map(),serial=0;
+const val=id=>$(id).type==='range'?Number($(id).value):$(id).value;
+function settings(){return Object.fromEntries(names.map(x=>[x,val(x)]))}
+function update(){for(const id of names){const out=$(id+'V');if(out)out.textContent=val(id)}if(audio){master.gain.setTargetAtTime(val('volume')/100*.45,audio.currentTime,.015);for(const v of active.values()){v.filter.frequency.setTargetAtTime(val('cutoff'),audio.currentTime,.025);v.filter.Q.setTargetAtTime(val('q'),audio.currentTime,.025)}}}
+names.forEach(id=>$(id).addEventListener('input',update));
+function load(s){for(const id of names){if(s[id]!==undefined)$(id).value=s[id]}update()}
+function start(){if(!audio){audio=new(window.AudioContext||window.webkitAudioContext)();master=audio.createGain();master.gain.value=val('volume')/100*.45;master.connect(audio.destination)}audio.resume();$('status').textContent='● Audio ON'}
+$('start').onclick=start;
+$('init').onclick=()=>load(defaults);
+$('save').onclick=()=>{const blob=new Blob([JSON.stringify({format:'OMNI_PATCH_V03',parameters:settings()},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='OMNI-patch.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};
+$('import').onclick=()=>$('upload').click();
+$('upload').onchange=async e=>{try{const data=JSON.parse(await e.target.files[0].text());load(data.parameters||data)}catch(err){alert('Не удалось прочитать патч: '+err.message)}e.target.value=''};
+function voice(note){start();if(active.size>=8){const old=active.keys().next().value;off(old)}const now=audio.currentTime,freq=440*Math.pow(2,(note-69)/12),id=++serial,s=settings(),nodes=[],envelope=audio.createGain(),filter=audio.createBiquadFilter(),pan=audio.createStereoPanner();filter.type='lowpass';filter.frequency.value=s.cutoff;filter.Q.value=s.q;pan.pan.value=((id%5)-2)*s.width/500;envelope.gain.setValueAtTime(0.00001,now);envelope.gain.exponentialRampToValueAtTime(.75,now+Math.max(.005,s.attack));envelope.gain.setTargetAtTime(Math.max(.001,s.sustain*.75),now+Math.max(.005,s.attack),Math.max(.01,s.decay)/3);filter.connect(envelope);envelope.connect(pan);pan.connect(master);
+function osc(type,hz,gain,det){const o=audio.createOscillator(),g=audio.createGain();o.type=type;o.frequency.value=hz;o.detune.value=det||0;g.gain.value=gain;o.connect(g);g.connect(filter);o.start(now);nodes.push(o);return o}
+if(s.engine==='analog'){osc(s.wave,freq,.35,-s.detune);osc(s.wave,freq,.35*s.mix/100,s.detune)}
+else{const carrier=audio.createOscillator(),mod=audio.createOscillator(),mg=audio.createGain(),g=audio.createGain();carrier.type='sine';carrier.frequency.value=freq;mod.type='sine';mod.frequency.value=freq*s.ratio;mg.gain.value=s.fm*freq/200;g.gain.value=.46;mod.connect(mg);mg.connect(carrier.frequency);carrier.connect(g);g.connect(filter);carrier.start(now);mod.start(now);nodes.push(carrier,mod)}
+active.set(id,{nodes,envelope,filter,pan});return id}
+function off(id){const v=active.get(id);if(!v)return;const t=audio.currentTime,r=val('release');v.envelope.gain.cancelScheduledValues(t);v.envelope.gain.setTargetAtTime(.00001,t,Math.max(.01,r)/4);v.nodes.forEach(n=>{try{n.stop(t+r+0.12)}catch(e){}});active.delete(id)}
+const keys=$('keys'),white=[60,62,64,65,67,69,71,72],black=[{n:61,i:0},{n:63,i:1},{n:66,i:3},{n:68,i:4},{n:70,i:5}];function key(note,cls,left){const el=document.createElement('div');el.className=cls;el.dataset.note=note;if(left!==undefined)el.style.left=left+'%';return el}
+white.forEach(n=>keys.appendChild(key(n,'key')));black.forEach(x=>keys.appendChild(key(x.n,'black',((x.i+1)*100/8)-4)));
+keys.addEventListener('pointerdown',e=>{const k=e.target.closest('[data-note]');if(!k)return;e.preventDefault();const id=voice(+k.dataset.note);held.set(e.pointerId,{id,key:k});k.classList.add('active');k.setPointerCapture(e.pointerId)});
+function release(e){const h=held.get(e.pointerId);if(!h)return;off(h.id);h.key.classList.remove('active');held.delete(e.pointerId)}
+keys.addEventListener('pointerup',release);keys.addEventListener('pointercancel',release);keys.addEventListener('lostpointercapture',release);
+document.addEventListener('visibilitychange',()=>{if(document.hidden){for(const id of active.keys())off(id);held.clear()}});
+update();
+})();
+</script></body></html>
